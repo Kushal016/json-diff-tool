@@ -369,7 +369,7 @@ Format your response exactly like this:
 [paragraph]`;
 
     try {
-      const response = await fetch("http://localhost:3001/api/explain", {
+      const response = await fetch("/api/explain", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ prompt }),
