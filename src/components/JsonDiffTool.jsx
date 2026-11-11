@@ -226,9 +226,9 @@ function CodeEditor({ value, onChange, placeholder }) {
     const view = viewRef.current;
     if (!view) return;
     const current = view.state.doc.toString();
-    if (value === "" && current !== "") {
+    if (value !== current) {
       view.dispatch({
-        changes: { from: 0, to: current.length, insert: "" },
+        changes: { from: 0, to: current.length, insert: value },
       });
     }
   }, [value]);
@@ -375,6 +375,11 @@ Format your response exactly like this:
         body: JSON.stringify({ prompt }),
       });
 
+      if (!response.ok) {
+        const details = await response.text();
+        throw new Error(`Request failed (${response.status}): ${details}`);
+      }
+
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
 
@@ -397,7 +402,7 @@ Format your response exactly like this:
         }
       }
     } catch (err) {
-      setExplanation("Failed to get explanation. Please try again.");
+      setExplanation(`Failed to get explanation. ${err.message}`);
     } finally {
       setExplaining(false);
     }
@@ -409,6 +414,22 @@ Format your response exactly like this:
     setError("");
     setExplanation(null);
     setExplaining(false);
+  }
+  function beautify(side) {
+    const value = side === "left" ? left : right;
+    const setValue = side === "left" ? setLeft : setRight;
+    const label = side === "left" ? "Original" : "Modified";
+
+    if (!value.trim()) return;
+
+    const parsed = parseJSON(value);
+    if (!parsed.ok) {
+      setError(`${label}: ${parsed.err}`);
+      return;
+    }
+
+    setError("");
+    setValue(JSON.stringify(parsed.val, null, 2));
   }
 
   const hasDiff = result && result.added + result.removed + result.changed > 0;
@@ -606,25 +627,41 @@ Format your response exactly like this:
         <div className="grid grid-cols-2 gap-3 mb-3">
           {[
             {
+              side: "left",
               label: "Original",
               value: left,
               onChange: setLeft,
               placeholder: '{"name": "Alice"}',
             },
             {
+              side: "right",
               label: "Modified",
               value: right,
               onChange: setRight,
               placeholder: '{"name": "Alice", "active": true}',
             },
-          ].map(({ label, value, onChange, placeholder }) => (
+          ].map(({ side, label, value, onChange, placeholder }) => (
             <div key={label}>
-              <label
-                className="block text-xs font-medium mb-1.5 tracking-wide uppercase"
-                style={{ color: "#8b949e" }}
-              >
-                {label}
-              </label>
+              <div className="flex items-center justify-between mb-1.5">
+                <label
+                  className="text-xs font-medium tracking-wide uppercase"
+                  style={{ color: "#8b949e" }}
+                >
+                  {label}
+                </label>
+                <button
+                  onClick={() => beautify(side)}
+                  disabled={!value.trim()}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] transition-colors disabled:opacity-30 disabled:cursor-not-allowed cursor-pointer"
+                  style={{
+                    background: "rgba(56,189,248,0.08)",
+                    border: "0.5px solid rgba(56,189,248,0.2)",
+                    color: "#38bdf8",
+                  }}
+                >
+                  ✦ Beautify
+                </button>
+              </div>
               <CodeEditor
                 value={value}
                 onChange={onChange}
